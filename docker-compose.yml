@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: aiq-backend
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./uploads:/app/uploads # optional: persist uploaded files
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - frontend
+
+  frontend:
+    build: ./frontend
+    container_name: aiq-frontend
+    ports:
+      - '3000:3000'
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    stdin_open: true
+    tty: true
