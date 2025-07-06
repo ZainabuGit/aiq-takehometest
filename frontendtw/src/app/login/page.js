@@ -15,16 +15,12 @@ export default function LoginPage() {
         setError("");
 
         try {
-            console.log("POSTing to", api.defaults.baseURL + "/auth/login");
-
             const res = await api.post("/auth/login", { username, password });
             localStorage.setItem("token", res.data.access_token);
             localStorage.setItem("refresh_token", res.data.refresh_token);
             router.push("/");
         } catch (err) {
-
-            setError(error);
-            // setError("❌ Invalid username or password.");
+            setError("❌ Invalid username or password.");
         }
     };
 

@@ -1,11 +1,10 @@
 import axios from "axios";
 import { logout } from "./auth";
-import {API_ENDPOINTS} from "@/config/api";
 
 const api = axios.create({
-    baseURL: API_ENDPOINTS.BASE,
+    baseURL: "https://temperature-commodities-stakeholders-champions.trycloudflare.com",
 });
-
+//http://nest-api-env.eba-uw5jdqh6.us-east-1.elasticbeanstalk.com/api
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
     if (token) config.headers.Authorization = `Bearer ${token}`;
