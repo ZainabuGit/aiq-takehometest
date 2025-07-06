@@ -9,3 +9,9 @@ export function setToken(token) {
 export function removeToken() {
     localStorage.removeItem("token");
 }
+
+export function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "/login";
+}

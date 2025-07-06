@@ -1,10 +1,10 @@
-// File: src/app/page.js
 "use client";
 
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 import { API_ENDPOINTS } from "@/config/api";
+import { logout } from "@/lib/auth";
 
 export default function Home() {
     const router = useRouter();
@@ -14,18 +14,41 @@ export default function Home() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [file, setFile] = useState(null);
+    // const [availableStates, setAvailableStates] = useState<string[]>([]);
+    const [availableStates, setAvailableStates] = useState([]);
+
+    const FALLBACK_STATES = ["TX", "CA", "NC", "NY", "FL"];
+
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            router.push("/login");
+            return;
+        }
+
+        const loadStates = async () => {
+            try {
+                const res = await api.get(API_ENDPOINTS.FETCH_STATES);
+                const data = res.data;
+                if (Array.isArray(data) && data.length > 0) {
+                    setAvailableStates(data);
+                } else {
+                    setAvailableStates(FALLBACK_STATES);
+                }
+            } catch (err) {
+                console.warn("Failed to load states from backend, using fallback.");
+                setAvailableStates(FALLBACK_STATES);
+            }
+        };
+
+        loadStates();
+    }, [router]);
 
     const fetchPlants = async () => {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem("token");
-            const response = await axios.get(
-                API_ENDPOINTS.FETCH_PLANTS(state, top),
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
-            );
+            const response = await api.get(API_ENDPOINTS.FETCH_PLANTS(state, top));
             setPlants(response.data);
         } catch (err) {
             console.error(err);
@@ -42,14 +65,12 @@ export default function Home() {
             return;
         }
 
-        const token = localStorage.getItem("token");
         const formData = new FormData();
         formData.append("file", file);
 
         try {
-            const res = await axios.post(API_ENDPOINTS.UPLOAD_FILE, formData, {
+            const res = await api.post(API_ENDPOINTS.UPLOAD_FILE, formData, {
                 headers: {
-                    Authorization: `Bearer ${token}`,
                     "Content-Type": "multipart/form-data",
                 },
             });
@@ -63,27 +84,27 @@ export default function Home() {
     };
 
     const handleSync = async () => {
-        const token = localStorage.getItem("token");
         try {
-            await axios.get(API_ENDPOINTS.SYNC_FROM_S3(), {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+            await api.get(API_ENDPOINTS.SYNC_FROM_S3());
             alert("Data synchronized from S3 successfully");
+            window.location.reload();
         } catch (error) {
             console.error("Sync failed", error);
             alert("Sync failed");
         }
     };
 
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) router.push("/login");
-    }, [router]);
-
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 p-6">
+        <div
+            className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 p-6 relative">
+            {/* Logout Button */}
+            <button
+                onClick={logout}
+                className="absolute top-4 right-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow"
+            >
+                Logout
+            </button>
+
             <div className="bg-white shadow-2xl rounded-3xl p-10 w-full max-w-4xl text-gray-800">
                 <h1 className="text-3xl font-bold text-blue-800 mb-6 text-left">
                     Upload Power Plant Data
@@ -121,11 +142,11 @@ export default function Home() {
                         value={state}
                         onChange={(e) => setState(e.target.value)}
                     >
-                        <option value="TX">Texas</option>
-                        <option value="CA">California</option>
-                        <option value="NC">North Carolina</option>
-                        <option value="NY">New York</option>
-                        <option value="FL">Florida</option>
+                        {availableStates.map((s) => (
+                            <option key={s} value={s}>
+                                {s}
+                            </option>
+                        ))}
                     </select>
 
                     <input
@@ -170,8 +191,8 @@ export default function Home() {
                                 >
                                     <td className="px-6 py-4">{plant.name}</td>
                                     <td className="px-6 py-4 font-semibold text-blue-700">
-                                        {typeof plant.generation === "number"
-                                            ? plant.generation.toLocaleString()
+                                        {typeof plant.netGeneration === "number"
+                                            ? plant.netGeneration.toLocaleString()
                                             : "N/A"}
                                     </td>
                                 </tr>

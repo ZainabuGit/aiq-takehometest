@@ -5,12 +5,18 @@ import {
     UploadedFile,
     UseGuards,
     UseInterceptors,
-    Query
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { S3Service } from './upload.service';
-import { ApiBearerAuth, ApiConsumes, ApiTags, ApiOperation , ApiQuery , ApiResponse } from '@nestjs/swagger';
+import {
+    ApiBearerAuth,
+    ApiConsumes,
+    ApiTags,
+    ApiOperation,
+    ApiResponse,
+} from '@nestjs/swagger';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @ApiTags('Upload')
 @ApiBearerAuth()
@@ -22,15 +28,21 @@ export class UploadController {
     @UseGuards(AuthGuard('jwt'))
     @UseInterceptors(FileInterceptor('file'))
     @ApiConsumes('multipart/form-data')
+    @ApiOperation({ summary: 'Upload a file to S3' })
+    @ApiResponse({ status: 200, description: 'File uploaded successfully' })
+    @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+    @ApiResponse({ status: 500, description: 'Upload failed', type: ErrorResponseDto })
     async uploadToS3(@UploadedFile() file: Express.Multer.File) {
         return await this.s3Service.uploadFile(file);
     }
 
     @Get('uploadFromS3')
-    @ApiOperation({ summary: 'Load a CSV file from S3 and store it in memory' })
-    @ApiQuery({ name: 'key', required: true, description: 'S3 file key (e.g. gen23.csv)' })
+    @UseGuards(AuthGuard('jwt'))
+    @ApiOperation({ summary: 'Read and load all CSV files from S3 into memory' })
     @ApiResponse({ status: 200, description: 'Records loaded from S3' })
-    async uploadFromS3(@Query('key') key: string) {
-        return this.s3Service.uploadFromS3(key);
+    @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
+    @ApiResponse({ status: 500, description: 'S3 sync failed', type: ErrorResponseDto })
+    async uploadFromS3() {
+        return this.s3Service.uploadFromS3();
     }
 }

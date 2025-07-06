@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { S3Client, PutObjectCommand , GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand , GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as csv from 'csv-parser';
@@ -33,7 +33,6 @@ export class S3Service {
                     ContentType: file.mimetype,
                 }),
             );
-
             return {
                 message: 'File uploaded successfully',
                 key,
@@ -44,42 +43,65 @@ export class S3Service {
         }
     }
 
-    async uploadFromS3(key: string): Promise<{ message: string }> {
+    async uploadFromS3(): Promise<{ message: string }> {
         const bucket = process.env.S3_BUCKET_NAME;
-        key = "sample_powerplants.csv";
-        if (!bucket || !key) {
-            throw new Error('Missing S3_BUCKET_NAME or key');
+        if (!bucket) throw new Error("Missing S3_BUCKET_NAME environment variable.");
+
+        const listCommand = new ListObjectsV2Command({ Bucket: bucket });
+        const listResponse = await this.s3.send(listCommand);
+
+        const files = listResponse.Contents || [];
+        const allResults: PowerPlant[] = [];
+
+        for (const file of files) {
+            const key = file.Key;
+            if (!key) continue;
+
+            try {
+                const getCommand = new GetObjectCommand({ Bucket: bucket, Key: key });
+                const response = await this.s3.send(getCommand);
+                const stream = response.Body as Readable;
+
+                const results: PowerPlant[] = await new Promise((resolve, reject) => {
+                    const temp: PowerPlant[] = [];
+
+                    stream
+                        .pipe(csv())
+                        .on("data", (data) => {
+                            // if (allResults.length === 0) {
+                            //     console.log("🔍 First row keys:", Object.keys(data));
+                            // }
+                            try {
+                                const name = (data["Plant name"] || "").trim();
+                                const state = (data["Plant state abbreviation"] || "").trim().toUpperCase();
+                                const rawNetGen = (data["Generator annual net generation (MWh)"] || "").toString().replace(/,/g, "");
+
+                                if (!name || !state || isNaN(parseFloat(rawNetGen))) return;
+                                const netGeneration = parseFloat(rawNetGen);
+
+                                console.log('name' + name);
+                                console.log('state' + state);
+                                console.log('rawGen' + rawNetGen);
+
+                                temp.push({ name, state, netGeneration });
+                            } catch (err) {
+                                console.warn(`Skipping malformed row in file ${key}:`, err);
+                            }
+                        })
+                        .on("end", () => resolve(temp))
+                        .on("error", (err) => reject(err));
+                });
+
+                allResults.push(...results);
+                console.log(`Processed ${results.length} records from ${key}`);
+            } catch (err) {
+                console.error(`Failed to process file ${key}:`, err);
+            }
         }
 
-        const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-        const response = await this.s3.send(command);
-        const stream = response.Body as Readable;
+        const existing = this.powerplantService.getPlants();
+        this.powerplantService.setPlants([...existing, ...allResults]);
 
-        const results: PowerPlant[] = [];
-
-        return new Promise((resolve, reject) => {
-            stream
-                .pipe(csv())
-                .on('data', (data) => {
-                    try {
-                        const name = (data['Plant name'] || '').trim();
-                        const state = (data['State'] || '').trim().toUpperCase();
-                        const rawNetGen = data['Net generation (MWh)'] || '';
-
-                        if (!name || !state || isNaN(parseFloat(rawNetGen))) return;
-                        const netGeneration = parseFloat(rawNetGen);
-
-                        results.push({ name, state, netGeneration });
-                    } catch (err) {
-                        console.warn('Skipping malformed row:', err);
-                    }
-                })
-                .on('end', () => {
-                    const existing = this.powerplantService.getPlants();
-                    this.powerplantService.setPlants([...existing, ...results]);
-                    resolve({ message: `${results.length} records loaded from S3` });
-                })
-                .on('error', reject);
-        });
+        return { message: `${allResults.length} total records loaded from S3.` };
     }
 }

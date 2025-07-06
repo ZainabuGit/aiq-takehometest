@@ -10,8 +10,8 @@ import { JwtStrategy } from './jwt.strategy';
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: 'secretKey',
-      signOptions: { expiresIn: '1h' },
+      secret: process.env.JWT_SECRET as string || 'secretKey',
+      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '15m' },
     }),
   ],
   controllers: [AuthController],
