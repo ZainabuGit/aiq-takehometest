@@ -1,8 +1,9 @@
 import axios from "axios";
 import { logout } from "./auth";
+import {API_ENDPOINTS} from "@/config/api";
 
 const api = axios.create({
-    baseURL: "http://localhost:8000",
+    baseURL: API_ENDPOINTS.BASE,
 });
 
 api.interceptors.request.use((config) => {
