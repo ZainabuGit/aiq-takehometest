@@ -1,5 +1,6 @@
 
-const BASE_URL = "http://nest-api-env.eba-uw5jdqh6.us-east-1.elasticbeanstalk.com";
+// const BASE_URL = "http://nest-api-env.eba-uw5jdqh6.us-east-1.elasticbeanstalk.com";
+const BASE_URL = "http://localhost:8000";
 
 export const API_ENDPOINTS = {
     FETCH_PLANTS: (state, top) => `${BASE_URL}/powerplants?state=${state}&top=${top}`,

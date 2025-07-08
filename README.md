@@ -158,10 +158,18 @@ backend/
 
 ## Future Enhancements
 
-* Register endpoint
-* Public URLs for uploaded files
-* Charts/visuals (Recharts/D3)
-* Role-based access control
+* Currently if there is more than one record available in the CSV with same name no logic handled there in future we have to define a recruitment and add validation over there
+
+* JWT-based Authentication - Done one hard coded user this needs to be moved to DB level in future
+
+* Support for multiple CSV uploads can be done one by one but the recruitment has to be defined for repeated power plants names can be different files and how we handled this.
+
+* Deploy to AWS (S3 + EC2 or ECS) - this needs to be done and prod and dev env configurations needs to be separated along with separate S3 buckets 
+* Infrastructure-as-Code (Terraform) , this is done but not fully tested for a limited time. This needs to be completed in the future
+
+* Add DB (PostgreSQL or DynamoDB)
+* Integration tests need to be completed.
+
 
 ---
 
